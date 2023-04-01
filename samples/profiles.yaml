@@ -1,0 +1,66 @@
+kind: BetterDeployment
+metadata:
+  name: nginx
+spec:
+  replicas: 50
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+  schedule:
+  - name: reserved-primary-az
+    replicas: 10
+    profiles:
+      - primary-az
+      - reserved-node
+  - name: reserved-secondary-az
+    replicas: 10
+    profiles:
+      - secondary-az
+      - reserved-node
+  - name: spot-primary-az
+    profiles:
+      - primary-az
+      - spot-node
+  - name: spot-secondary-az
+    profiles:
+      - secondary-az
+      - spot-node
+
+
+----
+kind: DeploymentProfile
+metadata:
+  name: primary-az
+spec:
+  nodeSelector:
+    my.availability.zone: east-1-a
+  
+----
+kind: DeploymentProfile
+metadata:
+  name: secondary-az
+spec:
+  nodeSelector:
+    my.availability.zone: east-1-b
+  # affinity: ...
+
+----
+kind: DeploymentProfile
+metadata:
+  name: reserved-node
+spec:
+  nodeSelector:
+    node-kind: RESERVED
+
+----
+kind: DeploymentProfile
+metadata:
+  name: spot-node
+spec:
+  nodeSelector:
+    node-kind: SPOT

@@ -1,0 +1,25 @@
+kind: BetterDeployment
+metadata:
+  name: nginx
+spec:
+  replicas: 50
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+  schedule:
+  - name: reserved
+    replicas: 10
+    nodeSelector:
+      #...
+    affinity: 
+      # ...
+  - name: spot
+    nodeSelector:
+      #...
+    affinity: 
+      # ...
