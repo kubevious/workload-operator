@@ -1,0 +1,41 @@
+apiVersion: kubevious.io/v1alpha1
+kind: Workload
+metadata:
+  name: nginx-profiled
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      app: nginx-profiled
+  template:
+    metadata:
+      labels:
+        app: nginx-profiled
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+  schedule:
+  - name: reserved-primary-az
+    replicas: 10
+    profiles:
+      - primary-az
+      - reserved-node
+  - name: reserved-secondary-az
+    replicas: 10
+    profiles:
+      - secondary-az
+      - reserved-node
+  - name: spot-primary-az
+    profiles:
+      - primary-az
+      - spot-node
+  - name: spot-secondary-az
+    profiles:
+      - secondary-az
+      - spot-node
+  - name: lambda
+    profiles:
+      - lambda

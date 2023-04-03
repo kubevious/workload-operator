@@ -1,0 +1,32 @@
+apiVersion: kubevious.io/v1alpha1
+kind: Workload
+metadata:
+  name: nginx-simple
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      app: nginx-simple
+  template:
+    metadata:
+      labels:
+        app: nginx-simple
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+  schedule:
+  - name: reserved
+    replicas: 10
+    nodeSelector:
+      nodetype: ON_DEMAND
+  - name: spot
+    infra: k8s
+    nodeSelector:
+      nodetype: SPOT
+  - name: lambda
+    infra: serverless
+    nodeSelector:
+      nodetype: SPOT

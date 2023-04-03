@@ -2,8 +2,6 @@ apiVersion: kubevious.io/v1alpha1
 kind: Workload
 metadata:
   name: nginx
-  labels:
-    app: nginx
 spec:
   replicas: 10
   selector:
