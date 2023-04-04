@@ -3,7 +3,7 @@ kind: Workload
 metadata:
   name: nginx-simple
 spec:
-  replicas: 50
+  replicas: 10
   selector:
     matchLabels:
       app: nginx-simple
@@ -19,7 +19,7 @@ spec:
         - containerPort: 80
   schedule:
   - name: reserved
-    replicas: 10
+    replicas: 2
     nodeSelector:
       nodetype: ON_DEMAND
   - name: spot

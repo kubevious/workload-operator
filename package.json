@@ -25,6 +25,7 @@
     "@kubevious/http-client": "^1.0.20",
     "joi": "^17.3.0",
     "k8s-super-client": "^2.1.1",
+    "kubernetes-types": "^1.26.0",
     "the-lodash": "^2.1.2",
     "the-logger": "^2.1.1",
     "the-promise": "^2.1.3"

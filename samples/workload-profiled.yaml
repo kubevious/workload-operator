@@ -3,7 +3,7 @@ kind: Workload
 metadata:
   name: nginx-profiled
 spec:
-  replicas: 50
+  replicas: 10
   selector:
     matchLabels:
       app: nginx-profiled
@@ -19,12 +19,12 @@ spec:
         - containerPort: 80
   schedule:
   - name: reserved-primary-az
-    replicas: 10
+    replicas: 1
     profiles:
       - primary-az
       - reserved-node
   - name: reserved-secondary-az
-    replicas: 10
+    replicas: 2
     profiles:
       - secondary-az
       - reserved-node
