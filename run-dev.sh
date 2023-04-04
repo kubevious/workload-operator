@@ -19,4 +19,6 @@ export NODE_ENV=development
 
 # source ../dependencies.git/worldvious/short-delays.sh
 
+source ${MY_DIR}/k8s/configuration.sh
+
 node dist/mock/index-mock

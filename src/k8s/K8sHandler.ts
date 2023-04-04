@@ -1,5 +1,4 @@
 import _ from 'the-lodash';
-import { Promise } from 'the-promise';
 import { DeltaAction, KubernetesObject, ResourceAccessor } from "k8s-super-client";
 import { ILogger } from "the-logger";
 import { Context } from "../context";

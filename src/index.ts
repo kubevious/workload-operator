@@ -1,6 +1,5 @@
 import { Backend } from '@kubevious/helper-backend'
 import { LogLevel } from 'the-logger';
-import { Promise } from 'the-promise';
 import { Context } from './context'
 
 import { connectFromPod } from 'k8s-super-client';

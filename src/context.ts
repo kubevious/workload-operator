@@ -1,6 +1,5 @@
 import _ from 'the-lodash';
 import { ILogger } from 'the-logger';
-import { Promise } from 'the-promise';
 
 import { Backend } from '@kubevious/helper-backend'
 

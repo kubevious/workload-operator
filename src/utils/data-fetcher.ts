@@ -1,5 +1,5 @@
 import _ from 'the-lodash';
-import { Promise, Resolvable } from 'the-promise';
+import { MyPromise, Resolvable } from 'the-promise';
 import { ILogger } from 'the-logger';
 
 export type DataFetcherHandler<T> = (target: HasKind) => Resolvable<T> | null;
@@ -25,7 +25,7 @@ export class DataFetcher
         if (!handler) {
             return Promise.resolve(null);
         }
-        return Promise.try(() => handler(target))
+        return MyPromise.try(() => handler(target))
             .then(result => {
                 return <T>result;
             })
