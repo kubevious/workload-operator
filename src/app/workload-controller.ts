@@ -19,6 +19,9 @@ export class WorkloadController
 
     private _desiredManifests: KubernetesObject[] = [];
 
+    private _totalReplicas = 0;
+    private _schedules : ScheduleInfo[] = [];
+
     constructor(context: Context, workload: Workload)
     {
         this._context = context;
@@ -45,10 +48,63 @@ export class WorkloadController
 
         for(const schedule of this._workload.schedules)
         {
-            const manifest = this._renderSchedule(schedule);
-            this._addDesiredManifest(manifest as KubernetesObject);
-            // this._logger.info('Deployment: ', manifest);
+            const deployment = this._renderSchedule(schedule);
+            this._schedules.push({
+                schedule,
+                deployment,
+                replicasDecided: false
+            });
         }
+
+        this._calculateReplicas();
+
+        for(const scheduleInfo of this._schedules)
+        {
+            this._addDesiredManifest(scheduleInfo.deployment as KubernetesObject);
+        }
+    }
+
+    private _calculateReplicas()
+    {
+        if (!this._workload.config) {
+            return;
+        }
+
+        const totalReplicas = this._workload.config.spec?.replicas ?? 1;
+        let remainingReplicas = totalReplicas;
+
+        for(const scheduleInfo of this._schedules)
+        {
+            if (_.isNumber(scheduleInfo.schedule.replicas))
+            {
+                this._logger.info("[_calculateReplicas] %s -> %s", scheduleInfo.schedule.name, scheduleInfo.schedule.replicas);
+                const replicas = Math.min(remainingReplicas, scheduleInfo.schedule.replicas);
+                remainingReplicas -= replicas;
+                scheduleInfo.replicasDecided = true;
+                scheduleInfo.deployment.spec!.replicas = replicas;
+            }
+        }
+
+        const remainingSchedules = this._schedules.filter(x => !x.replicasDecided);
+        if (remainingSchedules.length > 0)
+        {
+            const replicas = Math.floor(remainingReplicas / remainingSchedules.length);
+            for(const scheduleInfo of remainingSchedules)
+            {
+                remainingReplicas -= replicas;
+                scheduleInfo.deployment.spec!.replicas = replicas;
+            }
+
+            for(const scheduleInfo of remainingSchedules)
+            {
+                if (remainingReplicas === 0) {
+                    break;
+                }
+                remainingReplicas -= 1;
+                scheduleInfo.deployment.spec!.replicas! += 1;
+            }
+        }
+
     }
 
     private _addDesiredManifest(manifest: KubernetesObject)
@@ -116,3 +172,10 @@ export class WorkloadController
 const ANNOTATIONS_TO_DELETE = [
     'kubectl.kubernetes.io/last-applied-configuration'
 ]
+
+interface ScheduleInfo
+{
+    schedule: KubeviousWorkloadScheduleSpec,
+    deployment: Deployment,
+    replicasDecided: boolean,
+}
