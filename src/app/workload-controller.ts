@@ -2,10 +2,13 @@ import _ from 'the-lodash';
 import { ILogger } from "the-logger";
 import { Context } from '../context';
 import { Workload } from './workload';
-import { ResourceAccessor } from 'k8s-super-client/dist';
+import { KubernetesObject, ResourceAccessor } from 'k8s-super-client/dist';
 import { Deployment, DeploymentSpec } from 'kubernetes-types/apps/v1';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import { KubeviousWorkloadScheduleSpec } from '../types/workload';
+import { StateSynchronizer } from './state-synchronizer';
+import { HashUtils } from '../utils/hash-utils';
+import { CONFIG_HASH_ANNOTATION } from '../utils/k8s';
 
 export class WorkloadController
 {
@@ -14,7 +17,7 @@ export class WorkloadController
     private _workload: Workload;
     private _deploymentClient : ResourceAccessor;
 
-    private _renderedDeployments: Deployment[] = [];
+    private _desiredManifests: KubernetesObject[] = [];
 
     constructor(context: Context, workload: Workload)
     {
@@ -30,11 +33,12 @@ export class WorkloadController
     async apply()
     {
         await this._renderManifests();
+        await this._applyChanges();
     }
 
     async _renderManifests()
     {
-        this._renderedDeployments = [];
+        this._desiredManifests = [];
         if (!this._workload.config) {
             return;
         }
@@ -42,12 +46,25 @@ export class WorkloadController
         for(const schedule of this._workload.schedules)
         {
             const manifest = this._renderSchedule(schedule);
+            this._addDesiredManifest(manifest as KubernetesObject);
             // this._logger.info('Deployment: ', manifest);
-            this._renderedDeployments.push(manifest);
         }
     }
 
-    _renderSchedule(schedule: KubeviousWorkloadScheduleSpec)
+    private _addDesiredManifest(manifest: KubernetesObject)
+    {
+        if (!manifest.metadata.annotations) {
+            manifest.metadata.annotations = {};
+        }
+        const hash = HashUtils.calculateObjectHashStr(manifest);
+        manifest.metadata.annotations[CONFIG_HASH_ANNOTATION] = hash;
+
+        this._logger.info('[_addDesiredManifest] %s', manifest.metadata.name);
+
+        this._desiredManifests.push(manifest);
+    }
+
+    private _renderSchedule(schedule: KubeviousWorkloadScheduleSpec)
     {
         const metadata = this._newMetadata();
         metadata.name = [this._workload.name, schedule.name].filter(x => x.length > 0).join('-');
@@ -64,7 +81,7 @@ export class WorkloadController
         return d;
     }
 
-    _newMetadata() : ObjectMeta
+    private _newMetadata() : ObjectMeta
     {
         let metadata : ObjectMeta = {
             namespace: this._workload.namespace,
@@ -82,6 +99,15 @@ export class WorkloadController
         }
         
         return metadata;
+    }
+
+    private async _applyChanges()
+    {
+        const synchronizer = new StateSynchronizer(this._context);
+        synchronizer.addActual(this._workload.deployments as KubernetesObject[]);
+        synchronizer.addDesired(this._desiredManifests);
+
+        await synchronizer.apply();
     }
 
 }

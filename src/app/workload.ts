@@ -59,6 +59,10 @@ export class Workload
         return this._defaultDeploymentSpec;
     }
 
+    get deployments() {
+        return _.values(this._deployments);
+    }
+
     setupConfig(config: KubeviousWorkload)
     {
         this._config = config;

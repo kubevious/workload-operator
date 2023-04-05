@@ -3,7 +3,7 @@ kind: Workload
 metadata:
   name: nginx-simple
 spec:
-  replicas: 10
+  replicas: 5
   selector:
     matchLabels:
       app: nginx-simple

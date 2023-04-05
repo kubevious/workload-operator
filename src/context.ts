@@ -4,7 +4,6 @@ import { KubernetesClient } from 'k8s-super-client';
 import { Backend } from '@kubevious/helper-backend'
 
 import { WebServer } from './server';
-import { StateSynchronizer } from './app/state-synchronizer';
 import { WorkloadRegistry } from './app/workload-registry';
 import { DeploymentWatcher } from './k8s/deployment-watcher';
 import { WorkloadWatcher } from './k8s/workload-watcher';
@@ -23,7 +22,6 @@ export class Context
 
     private _k8sClient? : KubernetesClient;
 
-    private _stateSynchronizer? : StateSynchronizer;
     private _changeScheduler : ChangeScheduler;
     private _workloadWatcher : WorkloadWatcher;
     private _deploymentWatcher : DeploymentWatcher;
@@ -58,10 +56,6 @@ export class Context
                 });
         });
 
-        backend.stage("setup-synchronizer", () => {
-            this._stateSynchronizer = new StateSynchronizer(this);
-        });
-
         backend.stage("setup-server", () => this._server.run());
 
         backend.stage("init-workload-watcher", () => this._workloadWatcher.init());
@@ -90,10 +84,6 @@ export class Context
 
     get workloadRegistry() {
         return this._workloadRegistry;
-    }
-
-    get stateSynchronizer() {
-        return this._stateSynchronizer!;
     }
 
     get changeScheduler() {
