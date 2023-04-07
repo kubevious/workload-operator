@@ -1,9 +1,10 @@
 import _ from 'the-lodash';
 import { ILogger } from "the-logger";
 import { KubeviousWorkload, KubeviousWorkloadScheduleSpec, KubeviousWorkloadSpec } from "../types/workload";
-import { ObjectMeta, OwnerReference } from 'kubernetes-types/meta/v1';
+import { OwnerReference } from 'kubernetes-types/meta/v1';
 import { Deployment, DeploymentSpec } from "kubernetes-types/apps/v1";
 import { Context } from '../context';
+import { Profile } from './profile';
 
 export class Workload
 {
@@ -16,6 +17,8 @@ export class Workload
     private _schedules: KubeviousWorkloadScheduleSpec[] = [];
     private _defaultDeploymentSpec: DeploymentSpec | null = null;
     private _ownerReferences: OwnerReference[] = [];
+
+    private _profiles: Profile[] = [];
 
     private _deployments: Record<string, Deployment> = {};
 
@@ -63,7 +66,7 @@ export class Workload
         return _.values(this._deployments);
     }
 
-    setupConfig(config: KubeviousWorkload)
+    setupConfig(config: KubeviousWorkload | null)
     {
         this._config = config;
         this._defaultDeploymentSpec = null;
@@ -97,7 +100,7 @@ export class Workload
                 uid: config.metadata!.uid!,
                 controller: true,
                 blockOwnerDeletion: true
-            })
+            });
         }
 
         this.invalidate();
@@ -105,18 +108,12 @@ export class Workload
 
     remove()
     {
-        this.invalidate();
+        this.setupConfig(null);
     }
 
     invalidate()
     {
-        // if (this._isDirty) {
-        //     return;
-        // }
-        // this._isDirty = true;
         this._context.changeScheduler.schedule(this);
-        // this.renderManifests();
-        // this._context.stateSynchronizer.apply(this);
     }
 
     addDeployment(deployment: Deployment)
@@ -133,6 +130,22 @@ export class Workload
         this._logger.info("[removeDeployment] %s", name);
         delete this._deployments[name!];
         this.invalidate();
+    }
+
+    attachProfiles(profiles: Profile[])
+    {
+        for(const profile of profiles)
+        {
+            profile.detachWorkload(this);
+        }
+
+        this._profiles = [];
+        
+        for(const profile of profiles)
+        {
+            this._profiles.push(profile);
+            profile.attachWorkload(this);
+        }
     }
 
 }

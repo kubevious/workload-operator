@@ -2436,8 +2436,8 @@ spec:
                         - k8s
                         - serverless
                       replicas:
-                        format: int32
-                        type: integer
+                        pattern: "^[0-9]+%$"
+                        x-kubernetes-int-or-string: true
                       nodeSelector:
                         additionalProperties:
                           type: string

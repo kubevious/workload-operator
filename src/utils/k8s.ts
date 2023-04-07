@@ -1,6 +1,7 @@
 import { KubernetesObject } from "k8s-super-client";
 
-export const CONFIG_HASH_ANNOTATION = 'kubevious.io/last-applied-config-hash'
+export const KUBEVIOUS_ANNOTATION_CONFIG_HASH = 'workload.kubevious.io/last-applied-config-hash'
+export const KUBEVIOUS_ANNOTATION_SCHEDULE = 'workload.kubevious.io/schedule'
 
 export function makeKey(data: KubernetesObject)
 {

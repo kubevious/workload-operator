@@ -19,7 +19,7 @@ spec:
         - containerPort: 80
   schedule:
   - name: reserved
-    replicas: 2
+    replicas: 50%
     nodeSelector:
       nodetype: ON_DEMAND
   - name: spot

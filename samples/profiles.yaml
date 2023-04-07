@@ -5,7 +5,7 @@ metadata:
   name: primary-az
 spec:
   nodeSelector:
-    my.availability.zone: east-1-a
+    failure-domain.beta.kubernetes.io/zone: us-east-1a
   
 ---
 apiVersion: kubevious.io/v1alpha1
@@ -14,8 +14,7 @@ metadata:
   name: secondary-az
 spec:
   nodeSelector:
-    my.availability.zone: east-1-b
-  # affinity: ...
+    failure-domain.beta.kubernetes.io/zone: us-east-1b
 
 ---
 apiVersion: kubevious.io/v1alpha1
@@ -24,7 +23,7 @@ metadata:
   name: reserved-node
 spec:
   nodeSelector:
-    node-kind: RESERVED
+    eks.amazonaws.com/capacityType: ON_DEMAND
 
 ---
 apiVersion: kubevious.io/v1alpha1
@@ -33,7 +32,7 @@ metadata:
   name: spot-node
 spec:
   nodeSelector:
-    node-kind: SPOT
+    eks.amazonaws.com/capacityType: SPOT
 
 ---
 apiVersion: kubevious.io/v1alpha1

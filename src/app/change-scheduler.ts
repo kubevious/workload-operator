@@ -2,8 +2,10 @@ import _ from 'the-lodash';
 import { ILogger } from "the-logger";
 import { Context } from '../context';
 import { Workload } from './workload';
-import { MyPromise } from 'the-promise/dist';
+import { MyPromise } from 'the-promise';
 import { WorkloadController } from './workload-controller';
+
+const PAUSE_DELAY_MS = 2000;
 
 export class ChangeScheduler
 {
@@ -21,12 +23,17 @@ export class ChangeScheduler
 
     public schedule(workload: Workload)
     {
-        if (!this._workloads[workload.key])
+        if (!this.isScheduled(workload))
         {
             this._workloads[workload.key] = workload;
             this._queue.push(workload);
             this._trigger();
         }
+    }
+
+    public isScheduled(workload: Workload)
+    {
+        return _.isNotNullOrUndefined(this._workloads[workload.key]);
     }
 
     private _trigger()
@@ -42,7 +49,7 @@ export class ChangeScheduler
         this._isScheduled = true;
 
         Promise.resolve(null)
-            .then(() => MyPromise.delay(2000))
+            .then(() => MyPromise.delay(PAUSE_DELAY_MS))
             .then(() => {
                 this._isScheduled = false;
                 this._processAll();
@@ -71,7 +78,7 @@ export class ChangeScheduler
         this._logger.info(">>>>>> [_processSingle] %s", workload.key);
 
         const controller = new WorkloadController(this._context, workload);
-        return controller.apply();
+        await controller.apply();
     }
 
 }

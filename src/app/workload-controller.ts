@@ -2,44 +2,54 @@ import _ from 'the-lodash';
 import { ILogger } from "the-logger";
 import { Context } from '../context';
 import { Workload } from './workload';
-import { KubernetesObject, ResourceAccessor } from 'k8s-super-client/dist';
+import { KubernetesObject } from 'k8s-super-client';
 import { Deployment, DeploymentSpec } from 'kubernetes-types/apps/v1';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import { KubeviousWorkloadScheduleSpec } from '../types/workload';
 import { StateSynchronizer } from './state-synchronizer';
 import { HashUtils } from '../utils/hash-utils';
-import { CONFIG_HASH_ANNOTATION } from '../utils/k8s';
+import { KUBEVIOUS_ANNOTATION_CONFIG_HASH, KUBEVIOUS_ANNOTATION_SCHEDULE } from '../utils/k8s';
+import { Profile } from './profile';
+import { KubeviousProfileSpec } from '../types/profile';
+import { PodSpec } from 'kubernetes-types/core/v1';
 
 export class WorkloadController
 {
     private _context: Context;
     private _logger : ILogger;
     private _workload: Workload;
-    private _deploymentClient : ResourceAccessor;
 
     private _desiredManifests: KubernetesObject[] = [];
 
-    private _totalReplicas = 0;
     private _schedules : ScheduleInfo[] = [];
+    private _usedProfiles : Record<string, Profile> = {};
+    private _missingProfiles : Record<string, boolean> = {}
 
     constructor(context: Context, workload: Workload)
     {
         this._context = context;
         this._logger = context.logger.sublogger("WorkloadController");
         this._workload = workload;
-        if (!context.k8sClient) {
-            throw new Error("K8s Client Missing")
-        }
-        this._deploymentClient = context.k8sClient.Deployment!;
     }
 
     async apply()
     {
-        await this._renderManifests();
+        this._renderManifests();
+
+        this._attachProfiles();
+
         await this._applyChanges();
+
+        if (!this._workload.config)
+        {
+            if(!this._context.changeScheduler.isScheduled(this._workload))
+            {
+                this._context.workloadRegistry.remove(this._workload);
+            }
+        }
     }
 
-    async _renderManifests()
+    _renderManifests()
     {
         this._desiredManifests = [];
         if (!this._workload.config) {
@@ -48,12 +58,7 @@ export class WorkloadController
 
         for(const schedule of this._workload.schedules)
         {
-            const deployment = this._renderSchedule(schedule);
-            this._schedules.push({
-                schedule,
-                deployment,
-                replicasDecided: false
-            });
+            this._renderSchedule(schedule);
         }
 
         this._calculateReplicas();
@@ -62,6 +67,11 @@ export class WorkloadController
         {
             this._addDesiredManifest(scheduleInfo.deployment as KubernetesObject);
         }
+    }
+
+    private _attachProfiles()
+    {
+        this._workload.attachProfiles(_.values(this._usedProfiles));
     }
 
     private _calculateReplicas()
@@ -75,13 +85,27 @@ export class WorkloadController
 
         for(const scheduleInfo of this._schedules)
         {
-            if (_.isNumber(scheduleInfo.schedule.replicas))
+            if (_.isNotNullOrUndefined(scheduleInfo.replicas))
             {
-                this._logger.info("[_calculateReplicas] %s -> %s", scheduleInfo.schedule.name, scheduleInfo.schedule.replicas);
-                const replicas = Math.min(remainingReplicas, scheduleInfo.schedule.replicas);
-                remainingReplicas -= replicas;
-                scheduleInfo.replicasDecided = true;
-                scheduleInfo.deployment.spec!.replicas = replicas;
+                let replicas : number | null = null;
+                if (_.isNumber(scheduleInfo.replicas)) 
+                {
+                    replicas = scheduleInfo.replicas!;
+                }
+                else if (_.isString(scheduleInfo.replicas))
+                {
+                    const percentage = parseFloat(scheduleInfo.replicas.replace("%", "")) / 100;
+                    replicas = Math.round(totalReplicas * percentage);
+                }
+
+                if (_.isNotNullOrUndefined(replicas))
+                {
+                    this._logger.info("[_calculateReplicas] %s -> %s", scheduleInfo.schedule.name, replicas);
+                    replicas = Math.min(remainingReplicas, replicas!);
+                    remainingReplicas -= replicas;
+                    scheduleInfo.replicasDecided = true;
+                    scheduleInfo.deployment.spec!.replicas = replicas;
+                }
             }
         }
 
@@ -104,7 +128,6 @@ export class WorkloadController
                 scheduleInfo.deployment.spec!.replicas! += 1;
             }
         }
-
     }
 
     private _addDesiredManifest(manifest: KubernetesObject)
@@ -113,7 +136,7 @@ export class WorkloadController
             manifest.metadata.annotations = {};
         }
         const hash = HashUtils.calculateObjectHashStr(manifest);
-        manifest.metadata.annotations[CONFIG_HASH_ANNOTATION] = hash;
+        manifest.metadata.annotations[KUBEVIOUS_ANNOTATION_CONFIG_HASH] = hash;
 
         this._logger.info('[_addDesiredManifest] %s', manifest.metadata.name);
 
@@ -124,17 +147,64 @@ export class WorkloadController
     {
         const metadata = this._newMetadata();
         metadata.name = [this._workload.name, schedule.name].filter(x => x.length > 0).join('-');
+        (metadata.annotations!)[KUBEVIOUS_ANNOTATION_SCHEDULE] = schedule.name;
 
         const spec : DeploymentSpec = _.cloneDeep(this._workload.defaultDeploymentSpec!);
+        const podSpec = spec.template.spec!;
 
-        const d : Deployment = {
+        let desiredReplicas : number | string | null = schedule.replicas ?? null;
+        this._applySpec(podSpec, schedule);
+
+        for(const profileName of (schedule.profiles ?? []))
+        {
+            const profile = this._context.profileRegistry.fetch(this._workload.namespace, profileName);
+            this._usedProfiles[profile.name] = profile;
+
+            if (profile.config?.spec)
+            {
+                desiredReplicas = profile.config.spec.replicas ?? desiredReplicas;
+                this._applySpec(podSpec, profile.config.spec);
+            }
+            else
+            {
+                this._missingProfiles[profileName] = true;
+            }
+        }
+
+        const deployment : Deployment = {
             apiVersion: "apps/v1",
             kind: "Deployment",
             metadata: metadata,
             spec: spec
         }
 
-        return d;
+        // if (metadata.name === 'nginx-profiled-spot-primary-az')
+        // {
+        //     this._logger.info("XXXXX ", d);
+        // }
+
+
+        this._logger.info("[_renderSchedule] WORKLOAD: %s", this._workload.name);
+        this._logger.info("[_renderSchedule]   *  schedule: %s", schedule.name);
+        this._logger.info("[_renderSchedule]      - desiredReplicas: %s", desiredReplicas);
+
+        this._schedules.push({
+            schedule,
+            deployment,
+            replicas: desiredReplicas,
+            replicasDecided: false
+        });
+    }
+
+    private _applySpec(spec: PodSpec, profileSpec: KubeviousProfileSpec)
+    {
+        const profilePodSpec : PodSpec = {
+            nodeSelector: profileSpec.nodeSelector,
+            affinity: profileSpec.affinity,
+            containers: []
+        }
+        
+        _.defaultsDeep(spec, profilePodSpec);
     }
 
     private _newMetadata() : ObjectMeta
@@ -178,4 +248,5 @@ interface ScheduleInfo
     schedule: KubeviousWorkloadScheduleSpec,
     deployment: Deployment,
     replicasDecided: boolean,
+    replicas : number | string | null
 }

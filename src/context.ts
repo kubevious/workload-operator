@@ -5,8 +5,10 @@ import { Backend } from '@kubevious/helper-backend'
 
 import { WebServer } from './server';
 import { WorkloadRegistry } from './app/workload-registry';
+import { ProfileRegistry } from './app/profile-registry';
 import { DeploymentWatcher } from './k8s/deployment-watcher';
 import { WorkloadWatcher } from './k8s/workload-watcher';
+import { ProfileWatcher } from './k8s/profile-watcher';
 
 import VERSION from './version'
 import { ChangeScheduler } from './app/change-scheduler';
@@ -22,10 +24,13 @@ export class Context
 
     private _k8sClient? : KubernetesClient;
 
+    private _workloadRegistry : WorkloadRegistry;
+    private _profileRegistry : ProfileRegistry;
+
     private _changeScheduler : ChangeScheduler;
     private _workloadWatcher : WorkloadWatcher;
     private _deploymentWatcher : DeploymentWatcher;
-    private _workloadRegistry : WorkloadRegistry;
+    private _profileWatcher : ProfileWatcher;
 
     constructor(backend : Backend, clusterConnector : ClusterConnectorCb)
     {
@@ -36,10 +41,13 @@ export class Context
 
         this._server = new WebServer(this);
 
-        this._changeScheduler = new ChangeScheduler(this);
+        this._profileRegistry = new ProfileRegistry(this);
         this._workloadRegistry = new WorkloadRegistry(this);
+
+        this._changeScheduler = new ChangeScheduler(this);
         this._workloadWatcher = new WorkloadWatcher(this);
         this._deploymentWatcher = new DeploymentWatcher(this);
+        this._profileWatcher = new ProfileWatcher(this);
       
         backend.registerErrorHandler((reason) => {
             this.logger.error("Critical error happened. Exiting.", reason);
@@ -58,6 +66,7 @@ export class Context
 
         backend.stage("setup-server", () => this._server.run());
 
+        backend.stage("init-profile-watcher", () => this._profileWatcher.init());
         backend.stage("init-workload-watcher", () => this._workloadWatcher.init());
         backend.stage("init-deployment-watcher", () => this._deploymentWatcher.init());
     }
@@ -84,6 +93,10 @@ export class Context
 
     get workloadRegistry() {
         return this._workloadRegistry;
+    }
+
+    get profileRegistry() {
+        return this._profileRegistry;
     }
 
     get changeScheduler() {

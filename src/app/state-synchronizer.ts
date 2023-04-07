@@ -1,10 +1,9 @@
 import _ from 'the-lodash';
 import { ILogger } from "the-logger";
 import { Context } from "../context";
-import { DeltaAction, KubernetesClient, KubernetesObject, ResourceAccessor } from "k8s-super-client";
-import { MyPromise } from "the-promise/dist";
-import { Deployment } from "kubernetes-types/apps/v1";
-import { CONFIG_HASH_ANNOTATION, parseApiVersion } from '../utils/k8s';
+import { DeltaAction, KubernetesClient, KubernetesObject } from "k8s-super-client";
+import { MyPromise } from "the-promise";
+import { KUBEVIOUS_ANNOTATION_CONFIG_HASH, parseApiVersion } from '../utils/k8s';
 
 export class StateSynchronizer
 {
@@ -136,8 +135,8 @@ export class StateSynchronizer
 
     private _isDifferent(actualObj: KubernetesObject, desiredObj: KubernetesObject)
     {
-        const hash = desiredObj.metadata.annotations![CONFIG_HASH_ANNOTATION];
-        const actualHash = (actualObj.metadata.annotations ?? {})[CONFIG_HASH_ANNOTATION];
+        const hash = desiredObj.metadata.annotations![KUBEVIOUS_ANNOTATION_CONFIG_HASH];
+        const actualHash = (actualObj.metadata.annotations ?? {})[KUBEVIOUS_ANNOTATION_CONFIG_HASH];
         if (!actualHash) {
             return true;
         }

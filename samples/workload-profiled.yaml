@@ -19,7 +19,7 @@ spec:
         - containerPort: 80
   schedule:
   - name: reserved-primary-az
-    replicas: 1
+    replicas: 10%
     profiles:
       - primary-az
       - reserved-node
