@@ -38,6 +38,9 @@ spec:
 apiVersion: kubevious.io/v1alpha1
 kind: WorkloadProfile
 metadata:
-  name: lambda
+  name: fargate
 spec:
-  infra: serverless
+  labels:
+    fargate: 'yes'
+  annotations:
+    run-in-fargate: 'yes'

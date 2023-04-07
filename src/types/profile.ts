@@ -1,5 +1,5 @@
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
-import { Affinity } from 'kubernetes-types/core/v1';
+import { Affinity, ResourceRequirements } from 'kubernetes-types/core/v1';
 
 export enum KubeviousScheduleInfra
 {
@@ -15,6 +15,12 @@ export interface KubeviousProfileSpec
         [name: string]: string;
     },
     affinity?: Affinity,
+    labels?: {
+        [name: string]: string;
+    },
+    annotations?: {
+        [name: string]: string;
+    },
 }
 
 

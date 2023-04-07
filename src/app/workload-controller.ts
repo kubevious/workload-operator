@@ -38,6 +38,12 @@ export class WorkloadController
 
         this._attachProfiles();
 
+        if (_.keys(this._missingProfiles).length > 0)
+        {
+            this._logger.error("[apply] Missing profiles for %s. Deployment skipped.", this._workload.key, _.keys(this._missingProfiles));
+            return;
+        }
+
         await this._applyChanges();
 
         if (!this._workload.config)
@@ -153,6 +159,7 @@ export class WorkloadController
         const podSpec = spec.template.spec!;
 
         let desiredReplicas : number | string | null = schedule.replicas ?? null;
+        this._applyMetadata(metadata, schedule);
         this._applySpec(podSpec, schedule);
 
         for(const profileName of (schedule.profiles ?? []))
@@ -160,10 +167,13 @@ export class WorkloadController
             const profile = this._context.profileRegistry.fetch(this._workload.namespace, profileName);
             this._usedProfiles[profile.name] = profile;
 
-            if (profile.config?.spec)
+            const profileSpec = profile.config?.spec;
+            if (profileSpec)
             {
-                desiredReplicas = profile.config.spec.replicas ?? desiredReplicas;
-                this._applySpec(podSpec, profile.config.spec);
+                desiredReplicas = profileSpec.replicas ?? desiredReplicas;
+                this._applyMetadata(metadata, profileSpec);
+                this._applyMetadata(spec.template.metadata!, profileSpec);
+                this._applySpec(podSpec, profileSpec);
             }
             else
             {
@@ -178,12 +188,6 @@ export class WorkloadController
             spec: spec
         }
 
-        // if (metadata.name === 'nginx-profiled-spot-primary-az')
-        // {
-        //     this._logger.info("XXXXX ", d);
-        // }
-
-
         this._logger.info("[_renderSchedule] WORKLOAD: %s", this._workload.name);
         this._logger.info("[_renderSchedule]   *  schedule: %s", schedule.name);
         this._logger.info("[_renderSchedule]      - desiredReplicas: %s", desiredReplicas);
@@ -196,15 +200,24 @@ export class WorkloadController
         });
     }
 
-    private _applySpec(spec: PodSpec, profileSpec: KubeviousProfileSpec)
+    private _applyMetadata(metadata : ObjectMeta, profileSpec: KubeviousProfileSpec)
+    {
+        const profileMetadata : ObjectMeta = {
+            labels: profileSpec.labels,
+            annotations: profileSpec.annotations,
+        }
+        _.defaultsDeep(metadata, profileMetadata);
+    }
+
+    private _applySpec(podSpec: PodSpec, profileSpec: KubeviousProfileSpec)
     {
         const profilePodSpec : PodSpec = {
             nodeSelector: profileSpec.nodeSelector,
             affinity: profileSpec.affinity,
             containers: []
         }
-        
-        _.defaultsDeep(spec, profilePodSpec);
+
+        _.defaultsDeep(podSpec, profilePodSpec);
     }
 
     private _newMetadata() : ObjectMeta

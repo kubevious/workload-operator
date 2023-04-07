@@ -23,10 +23,8 @@ spec:
     nodeSelector:
       nodetype: ON_DEMAND
   - name: spot
-    infra: k8s
     nodeSelector:
       nodetype: SPOT
-  - name: lambda
-    infra: serverless
+  - name: fargate
     nodeSelector:
       nodetype: SPOT

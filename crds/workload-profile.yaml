@@ -390,13 +390,14 @@ spec:
                           type: array
                       type: object
                   type: object
-                resources:
-                  properties:
-                    limits:
-                      x-kubernetes-preserve-unknown-fields: true
-                    requests:
-                      x-kubernetes-preserve-unknown-fields: true
-                  type: object    
+                labels:
+                  additionalProperties:
+                    type: string
+                  type: object
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
               type: object
           required:
           - spec
