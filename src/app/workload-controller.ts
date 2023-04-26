@@ -13,6 +13,8 @@ import { Profile } from './profile';
 import { KubeviousProfileSpec } from '../types/profile';
 import { PodSpec } from 'kubernetes-types/core/v1';
 
+const KUBEVIOUS_SCHEDULE_LABEL = 'workload.kubevious.io/schedule';
+
 export class WorkloadController
 {
     private _context: Context;
@@ -157,6 +159,19 @@ export class WorkloadController
 
         const spec : DeploymentSpec = _.cloneDeep(this._workload.defaultDeploymentSpec!);
         const podSpec = spec.template.spec!;
+
+        if (!spec.selector.matchLabels) {
+            spec.selector.matchLabels = {}
+        }
+        spec.selector.matchLabels![KUBEVIOUS_SCHEDULE_LABEL] = schedule.name;
+
+        if (!spec.template.metadata) {
+            spec.template.metadata = {}
+        }
+        if (!spec.template.metadata!.labels) {
+            spec.template.metadata!.labels = {}
+        }
+        spec.template.metadata!.labels![KUBEVIOUS_SCHEDULE_LABEL] = schedule.name;
 
         let desiredReplicas : number | string | null = schedule.replicas ?? null;
         this._applyMetadata(metadata, schedule);
