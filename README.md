@@ -60,9 +60,7 @@ kubectl create namespace workload-operator
 
 helm repo add kubevious https://helm.kubevious.io
 
-helm install workload-operator kubevious/workload-operator --version 0.0.3 -n workload-operator
-
-helm upgrade --atomic -i workload-operator kubevious/workload-operator --version 0.0.3 -n workload-operator
+helm upgrade -i workload-operator kubevious/workload-operator --version 0.0.3 -n workload-operator
 ```
 
 ## How Does It Work?
