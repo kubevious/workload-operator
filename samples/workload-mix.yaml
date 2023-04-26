@@ -1,0 +1,45 @@
+---
+apiVersion: kubevious.io/v1alpha1
+kind: Workload
+metadata:
+  name: nginx
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+  schedule:
+  - name: reserved
+    replicas: 20%
+    nodeSelector:
+      eks.amazonaws.com/capacityType: ON_DEMAND
+  - name: spot
+    profiles:
+      - primary-az
+      - spot-node
+
+---
+apiVersion: kubevious.io/v1alpha1
+kind: WorkloadProfile
+metadata:
+  name: spot-node
+spec:
+  nodeSelector:
+    eks.amazonaws.com/capacityType: SPOT
+
+---
+apiVersion: kubevious.io/v1alpha1
+kind: WorkloadProfile
+metadata:
+  name: primary-az
+spec:
+  nodeSelector:
+    failure-domain.beta.kubernetes.io/zone: us-east-1a
