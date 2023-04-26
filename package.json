@@ -1,7 +1,7 @@
 {
-  "name": "kubevious-deployment-operator",
+  "name": "kubevious-workload-operator",
   "version": "1.0.0",
-  "description": "Kubevious Deployment Operator",
+  "description": "Kubevious Workload Operator",
   "main": "dist/index.js",
   "types": "dist",
   "files": [
