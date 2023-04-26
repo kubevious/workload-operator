@@ -1,6 +1,6 @@
 {
   "name": "kubevious-workload-operator",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Kubevious Workload Operator",
   "main": "dist/index.js",
   "types": "dist",
